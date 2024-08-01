@@ -18,12 +18,16 @@ db = client.get_database("my_bot")
 messages_collection = db.get_collection("messages")
 
 @app.get("/api/v1/messages/")
-async def get_messages():
-    messages = messages_collection.find({})
+async def get_messages(page: int = 1, page_size: int = 10):
+    if page <= 0 or page_size <= 0:
+        raise HTTPException(status_code=400, detail="Неверные значения страницы или размера страницы")
+    messages = messages_collection.find({}).skip((page - 1) * page_size).limit(page_size)
     message_list = []
     for message in messages:
         message_list.append(Message(text=message["text"], author=message.get("author")))
-    return message_list
+    total_messages = messages_collection.count_documents({})
+    total_pages = (total_messages + page_size - 1) // page_size
+    return {"messages": message_list, "current_page": page, "total_pages": total_pages}
 
 
 @app.post("/api/v1/message/")
